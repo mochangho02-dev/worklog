@@ -870,7 +870,7 @@
     google.accounts.id.initialize({
       client_id: GIS_CLIENT_ID, callback: onGisCredential,
       auto_select: true, cancel_on_tap_outside: false,
-      use_fedcm_for_prompt: true, use_fedcm_for_button: true
+      use_fedcm_for_prompt: true, use_fedcm_for_button: false
     });
     google.accounts.id.renderButton(gisBox, {
       type: 'standard', theme: 'filled_black', size: 'large', shape: 'rectangular',
