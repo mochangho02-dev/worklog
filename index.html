@@ -318,8 +318,9 @@
     <div style="font-size:40px; line-height:1;">🔒</div>
     <h2 style="margin:12px 0 6px; font-size:22px;">작업일보</h2>
     <p style="margin:0 0 20px; color:var(--muted); font-size:15px;">모창호 계정으로 로그인해 주세요</p>
-    <button id="loginBtn" type="button" style="width:100%; min-height:52px; border:0; border-radius:12px; background:var(--ink); color:#fff; font-size:17px; font-weight:700;">구글로 로그인</button>
+    <div id="gisBtn" style="display:flex; justify-content:center; min-height:48px;"></div>
     <p id="loginMsg" style="margin:14px 0 0; min-height:20px; color:var(--danger); font-size:14px;"></p>
+    <button id="loginBtn" type="button" style="margin-top:10px; width:100%; min-height:44px; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--muted); font-size:15px;">위 버튼이 안 보이면 여기를 누르세요</button>
   </div>
 </div>
 
@@ -522,6 +523,7 @@
   </div>
 </div>
 
+<script src="https://accounts.google.com/gsi/client" async></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
   import {
@@ -534,7 +536,7 @@
     initializeAppCheck, ReCaptchaV3Provider
   } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check.js";
   import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut
+    getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCredential, onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
   const firebaseConfig = {
@@ -845,20 +847,56 @@
   const loginGate = document.getElementById('loginGate');
   const loginBtn = document.getElementById('loginBtn');
   const loginMsg = document.getElementById('loginMsg');
-  let dataStarted = false;
+  const gisBox = document.getElementById('gisBtn');
+  const GIS_CLIENT_ID = '352771487713-joljocelu6af2hs73aesdslenuf0o3qq.apps.googleusercontent.com';
+  let dataStarted = false, gisReady = false, signedIn = false;
   function showLogin(msg){
     loginGate.style.display = 'flex';
     loginMsg.textContent = msg || '';
     loginBtn.disabled = false;
   }
+  // 화면 안에서 바로 구글 계정을 고르는 방식 (새 탭을 열지 않음)
+  async function onGisCredential(resp){
+    loginMsg.textContent = '로그인 중이에요...';
+    try{
+      await signInWithCredential(auth, GoogleAuthProvider.credential(resp.credential));
+    }catch(err){
+      showLogin('로그인하지 못했어요. 다시 눌러 주세요.'); console.error(err);
+    }
+  }
+  function initGis(){
+    if(gisReady) return true;
+    if(!(window.google && google.accounts && google.accounts.id)) return false;
+    google.accounts.id.initialize({
+      client_id: GIS_CLIENT_ID, callback: onGisCredential,
+      auto_select: true, cancel_on_tap_outside: false,
+      use_fedcm_for_prompt: true, use_fedcm_for_button: true
+    });
+    google.accounts.id.renderButton(gisBox, {
+      type: 'standard', theme: 'filled_black', size: 'large', shape: 'rectangular',
+      text: 'signin_with', logo_alignment: 'left', locale: 'ko',
+      width: Math.max(220, Math.min(320, gisBox.clientWidth || 300))
+    });
+    gisReady = true;
+    if(!signedIn) google.accounts.id.prompt();
+    return true;
+  }
+  { let tries = 0; const t = setInterval(() => {
+      if(initGis()){ clearInterval(t); return; }
+      if(++tries > 50){ clearInterval(t); if(!signedIn) loginMsg.textContent = '아래 버튼을 눌러 로그인해 주세요.'; }
+    }, 300); }
+  // 예비 방법: 새 탭으로 로그인 (폰에서 멈추면 20초 뒤 다시 누를 수 있게 함)
   loginBtn.addEventListener('click', async () => {
     loginBtn.disabled = true;
     loginMsg.textContent = '로그인 창을 여는 중이에요...';
+    const stuck = setTimeout(() => { if(!signedIn) showLogin('로그인 창이 열리지 않았어요. 열린 탭을 닫고 다시 눌러 주세요.'); }, 20000);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     try{
       await signInWithPopup(auth, provider);
+      clearTimeout(stuck);
     }catch(err){
+      clearTimeout(stuck);
       // 폰에서 새 창이 막히면 같은 화면에서 넘어가는 방식으로 다시 시도
       if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/cancelled-popup-request'].includes(err.code)){
         try{ await signInWithRedirect(auth, provider); return; }catch(e2){ err = e2; }
@@ -870,6 +908,7 @@
   getRedirectResult(auth).catch(err => { showLogin('로그인하지 못했어요. 다시 눌러 주세요.'); console.error(err); });
   onAuthStateChanged(auth, async user => {
     // 어느 계정이 자료를 볼 수 있는지는 파이어베이스 규칙(서버)에서 정함 — 화면 파일에는 계정을 적지 않음
+    signedIn = !!user;
     if(user){
       loginGate.style.display = 'none';
       if(!dataStarted){ dataStarted = true; loadRecords(); loadHourlyAndWages(); }
