@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" id="viewportMeta" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>작업일보</title>
+<style>
+  :root{
+    --ink:#1F2A37;
+    --paper:#F7F6F3;
+    --card:#FFFFFF;
+    --line:#DEDBD3;
+    --amber:#C8862B;
+    --amber-deep:#9C6A1E;
+    --muted:#6B7280;
+    --danger:#B23B3B;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding-bottom:48px;
+  }
+  header{
+    background:var(--ink);
+    color:#fff;
+    padding:20px 20px 16px;
+  }
+  header h1{
+    margin:0 0 4px;
+    font-size:19px;
+    font-weight:700;
+    letter-spacing:-0.2px;
+  }
+  header h1 .ver{ font-size:12px; font-weight:500; opacity:.6; margin-left:6px; vertical-align:middle; }
+  header p{
+    margin:0;
+    font-size:13px;
+    color:#B9C2CC;
+  }
+  main{
+    max-width:480px;
+    margin:0 auto;
+    padding:16px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:12px;
+  }
+  .capture-row{
+    display:flex;
+    gap:10px;
+  }
+  .capture-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex:1;
+    padding:13px 10px;
+    background:var(--amber);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .capture-btn:active{ background:var(--amber-deep); }
+  .capture-btn.outline{
+    background:#fff;
+    color:var(--ink);
+    border:1.5px solid var(--line);
+  }
+  .capture-btn.outline:active{ background:#F0EEE9; }
+  .capture-btn svg{ width:20px; height:20px; flex-shrink:0; }
+  #preview-wrap{ display:none; }
+  #preview-wrap img{
+    width:100%;
+    border-radius:8px;
+    border:1px solid var(--line);
+    display:block;
+  }
+  .field{ margin-bottom:8px; }
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:3px;
+    font-weight:600;
+  }
+  .field input{
+    width:100%;
+    padding:9px 10px;
+    font-size:16px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .field input:focus{ outline:2px solid var(--amber); border-color:var(--amber); }
+  /* AI가 확신하지 못한 칸: 노란 배경으로 표시 → 직접 확인 */
+  .field input.unsure{ background:#FFF1C9; border:2px solid var(--amber); }
+  .cleanup-btn{ margin-top:14px; width:100%; padding:9px; background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:8px; font-size:13px; cursor:pointer; }
+  .row2{ display:flex; gap:10px; }
+  .row2 .field{ flex:1; }
+  .save-btn{
+    width:100%;
+    padding:12px;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:2px;
+  }
+  .save-btn:disabled{ background:#A9B1BB; cursor:not-allowed; }
+  .save-btn:active:not(:disabled){ background:#111927; }
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:8px;
+    line-height:1.45;
+  }
+  .section-title{
+    font-size:14px;
+    font-weight:700;
+    color:var(--ink);
+    margin:0 0 8px;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th,td{ text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  th{ color:var(--muted); font-weight:600; font-size:12px; }
+  td.num, th.num{ text-align:right; }
+  .empty{ color:var(--muted); font-size:13px; padding:8px 0; }
+  .del-btn{
+    background:none; border:none; color:var(--danger);
+    font-size:12px; cursor:pointer; padding:4px 6px;
+  }
+  .totals{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-top:14px;
+    padding-top:12px;
+    border-top:1px solid var(--line);
+  }
+  .totals .label{ font-size:13px; color:var(--muted); }
+  .totals .value{ font-size:20px; font-weight:700; color:var(--ink); }
+  .totals .amount{ font-size:13px; color:var(--amber-deep); font-weight:700; margin-top:2px; }
+  .rate-field{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); margin-top:6px; }
+  .rate-field input{ width:60px; padding:4px 6px; font-size:12px; border:1px solid var(--line); border-radius:5px; }
+
+  .nav-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:24px;
+  }
+  .nav-btn{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding:14px 8px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .nav-btn:active{ background:#F0EEE9; }
+  .nav-btn .emoji{ font-size:19px; }
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+  .back-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .back-btn{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:999px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.06);
+    color:var(--ink);
+    font-size:14px;
+    font-weight:700;
+    padding:5px 12px 5px 9px;
+    cursor:pointer;
+  }
+  .back-btn:active{ background:#F0EEE9; }
+  .screen-title{
+    font-size:16px;
+    font-weight:700;
+    color:var(--ink);
+    margin:0;
+  }
+  .list-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:13px 4px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .list-row:active{ background:#F0EEE9; }
+  .list-row .main{ font-size:15px; font-weight:600; }
+  .list-row .sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .list-row .qty{ font-size:15px; font-weight:700; color:var(--amber-deep); }
+  .day-total{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:8px; padding:9px 12px;
+    background:#FBF4E8; border:1px solid #EBD9BC; border-radius:8px;
+    font-size:14px; font-weight:700; color:var(--amber-deep);
+  }
+  tr.day-sum td{ background:#FBF4E8; color:var(--amber-deep); font-weight:700; font-size:12px; }
+  .manual-tag{
+    display:inline-block; font-size:9px; font-weight:600; line-height:1.2; color:var(--muted);
+    border:1px solid var(--line); border-radius:3px; padding:0 3px; margin-left:3px; vertical-align:1px;
+  }
+  td.date-cell{ white-space:nowrap; }
+  .pay-lines{ margin-top:8px; font-size:13px; }
+  .pay-lines .pl{ display:flex; justify-content:space-between; padding:3px 0; }
+  .pay-lines .pl .k{ color:var(--muted); }
+  .pay-lines .pl.minus .v{ color:var(--danger); }
+  .pay-lines .pl.net{ border-top:1px solid var(--line); margin-top:3px; padding-top:6px; font-weight:700; font-size:15px; }
+  .pay-lines .pl.net .v{ color:var(--amber-deep); }
+  .month-item{ padding:13px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .month-item:active{ background:#F0EEE9; }
+  .month-item .head{ display:flex; justify-content:space-between; align-items:baseline; }
+
+  /* ---- 새 첫 화면 (한 화면에 다 들어가게) ---- */
+  header{ display:flex; align-items:baseline; justify-content:space-between; padding:12px 18px; }
+  header h1{ margin:0; font-size:19px; }
+  header .head-date{ font-size:13px; color:#C9D1DA; }
+  main{ padding:12px 14px; }
+  .date-card{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:6px 12px; margin-bottom:4px;
+  }
+  .date-card label{ font-size:15px; font-weight:700; }
+  .date-card input{
+    font-size:16px; font-weight:700; color:var(--ink);
+    border:1px solid var(--line); border-radius:8px; padding:4px 8px; background:#FBFAF7;
+  }
+  .date-hint{ margin:0 4px 10px; font-size:12px; color:#6B5E4B; }
+  .capture-btn{ height:56px; font-size:17px; border-radius:12px; padding:0 10px; }
+  #aiReadBtn{ height:48px; font-size:15px; }
+  .status-box{
+    margin-top:10px; padding:10px 12px; border-radius:10px;
+    font-size:14px; line-height:1.5; white-space:pre-line;
+    background:#EEF4FF; border:1px solid #BFD3F6; color:#1E3A8A;
+  }
+  .status-box.ok{ background:#ECFDF3; border-color:#A7E3BF; color:#14532D; }
+  .status-box.warn{ background:#FFF7E6; border-color:#F2D199; color:#7A4A0B; }
+  .status-box.error{ background:#FDECEC; border-color:#F2B8B8; color:#8A1F1F; }
+  .day-total{
+    display:block; margin:12px 0; padding:10px 14px;
+    background:#FBF1E3; border:1px solid #EBCB9C; border-radius:12px; color:#7A4A0B;
+  }
+  .day-total .dt-top{ display:flex; justify-content:space-between; align-items:baseline; font-size:15px; font-weight:700; }
+  .day-total .dt-top #dayTotalValue{ font-size:24px; font-weight:800; }
+  .day-total .dt-sub{ display:flex; justify-content:space-between; gap:8px; font-size:12px; color:#6B4A1E; margin-top:2px; }
+  .nav-grid{ gap:10px; margin-bottom:10px; }
+  .nav-btn{ height:60px; padding:0 8px; font-size:16px; border-radius:12px; }
+  .nav-btn.c-blue{ background:#DBEAFE; border-color:#93C5FD; color:#1E3A8A; }
+  .nav-btn.c-green{ background:#DCFCE7; border-color:#86EFAC; color:#14532D; }
+  .nav-btn.c-purple{ background:#EDE9FE; border-color:#C4B5FD; color:#4C1D95; }
+  .nav-btn.c-teal{ background:#CCFBF1; border-color:#5EEAD4; color:#134E4A; }
+  .nav-btn:active{ filter:brightness(.95); }
+  .manual-btn{
+    width:100%; height:50px; border-radius:12px; cursor:pointer;
+    background:#FCE7F3; border:1px solid #F9A8D4; color:#831843;
+    font-size:15px; font-weight:700; margin-bottom:12px;
+  }
+  .save-btn.outline{ background:#fff; color:#7A4A0B; border:2px solid var(--amber); }
+  .wage-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .wage-now{ font-size:13px; color:var(--muted); font-weight:600; }
+  .wage-details{ margin-top:10px; font-size:13px; }
+  .wage-details summary{ cursor:pointer; color:var(--muted); font-weight:600; padding:4px 0; }
+  .wage-details .wh{ display:flex; justify-content:space-between; padding:5px 2px; border-bottom:1px solid var(--line); }
+  .hourly-item{ display:flex; justify-content:space-between; align-items:center; padding:7px 2px; border-bottom:1px solid var(--line); font-size:14px; }
+  .hourly-item .k{ color:var(--muted); font-size:12px; }
+  /* ---- 화면 맨 아래 「뒤로 | 처음으로」 ---- */
+  .bottom-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:500;
+    display:none; grid-template-columns:1fr 1fr; gap:10px;
+    padding:10px 16px calc(12px + env(safe-area-inset-bottom));
+    background:#fff; border-top:1px solid var(--line);
+  }
+  .bottom-bar button{
+    height:52px; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer;
+    background:#fff; color:var(--ink); border:1px solid var(--line);
+  }
+  .bottom-bar button.home{ background:var(--ink); color:#fff; border:none; }
+  body{ padding-bottom:90px; }
+  body.has-bottom{ padding-bottom:150px; }
+</style>
+</head>
+<body>
+
+<!-- 로그인 화면: 모창호 계정으로 로그인해야 앱이 열림 -->
+<div id="loginGate" style="display:flex; position:fixed; inset:0; z-index:9999; background:var(--paper); align-items:center; justify-content:center; padding:24px;">
+  <div style="background:var(--card); border:1px solid var(--line); border-radius:16px; padding:28px 22px; width:100%; max-width:360px; text-align:center;">
+    <div style="font-size:40px; line-height:1;">🔒</div>
+    <h2 style="margin:12px 0 6px; font-size:22px;">작업일보</h2>
+    <p style="margin:0 0 20px; color:var(--muted); font-size:15px;">모창호 계정으로 로그인해 주세요</p>
+    <button id="loginBtn" type="button" style="width:100%; min-height:52px; border:0; border-radius:12px; background:var(--ink); color:#fff; font-size:17px; font-weight:700;">구글로 로그인</button>
+    <p id="loginMsg" style="margin:14px 0 0; min-height:20px; color:var(--danger); font-size:14px;"></p>
+  </div>
+</div>
+
+<header>
+  <h1>작업일보</h1>
+  <span class="head-date" id="headerDate"></span>
+</header>
+
+<main>
+
+  <div class="screen active" id="screen-home">
+
+    <div class="date-card">
+      <label for="homeDate">작업 날짜</label>
+      <input type="date" id="homeDate">
+    </div>
+    <p class="date-hint">사진 올리기 전에 날짜를 먼저 맞춰 주세요</p>
+
+    <div class="capture-row">
+      <button class="capture-btn" id="captureBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        촬영하기
+      </button>
+      <button class="capture-btn outline" id="galleryBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        사진 선택
+      </button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none;">
+    <input type="file" id="fileInputGallery" accept="image/*" multiple style="display:none;">
+    <div class="status-box" id="batchStatus" style="display:none;"></div>
+
+    <div class="day-total">
+      <div class="dt-top"><span id="dayTotalLabel">오늘 합계</span><span id="dayTotalValue">0개</span></div>
+      <div class="dt-sub"><span id="dayTotalHours"></span><span id="dayTotalPay"></span></div>
+    </div>
+
+    <div class="nav-grid">
+      <button class="nav-btn c-blue" id="navRecords" type="button">저장된 기록</button>
+      <button class="nav-btn c-green" id="navByMonth" type="button">월별로 보기</button>
+      <button class="nav-btn c-purple" id="navByCode" type="button">품번별로 보기</button>
+      <button class="nav-btn c-teal" id="navPhotos" type="button">사진 보관함</button>
+    </div>
+    <button class="manual-btn" id="navManual" type="button">직접 입력 / 시급 작업 추가</button>
+
+  </div>
+
+  <div class="screen" id="screen-entry">
+    <div class="back-row">
+      <button class="back-btn" id="entryBackBtn" type="button">← 뒤로</button>
+      <p class="screen-title" id="entryTitle">확인 후 저장</p>
+    </div>
+
+    <div class="card" id="preview-wrap">
+      <img id="previewImg" alt="올린 작업일보 사진">
+      <button class="capture-btn" id="aiReadBtn" type="button" style="width:100%; margin-top:10px; background:var(--ink);">
+        AI로 다시 읽기
+      </button>
+      <div class="status-box" id="aiStatus" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">연마 작업</p>
+      <div class="field">
+        <label for="dateInput">날짜</label>
+        <input type="date" id="dateInput">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="codeInput">품번</label>
+          <input type="text" id="codeInput" list="codeList" placeholder="예: ZG785798" inputmode="text" autocapitalize="characters">
+          <datalist id="codeList">
+            <option value="ZG785798">
+            <option value="ZG785799">
+            <option value="ZG772627">
+            <option value="ZG794820">
+            <option value="ZG785713">
+            <option value="ZG770380">
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="hoursInput">작업시간</label>
+          <input type="text" id="hoursInput" placeholder="예: 6H">
+        </div>
+      </div>
+      <div class="field">
+        <label for="qtyInput">수량</label>
+        <input type="number" id="qtyInput" placeholder="예: 3044" inputmode="numeric">
+      </div>
+      <button class="save-btn" id="saveBtn" type="button">연마 작업 저장</button>
+      <p class="hint" id="statusMsg" style="white-space:pre-line;"></p>
+    </div>
+
+    <div class="card">
+      <div class="wage-head">
+        <p class="section-title" style="margin:0;">시급 작업</p>
+        <span class="wage-now" id="wageNow"></span>
+      </div>
+      <div class="row2">
+        <div class="field" style="flex:1;">
+          <label for="hourlyHours">시간</label>
+          <input type="text" id="hourlyHours" placeholder="예: 2H">
+        </div>
+        <div class="field" style="flex:2;">
+          <label for="hourlyNote">무슨 일</label>
+          <input type="text" id="hourlyNote" placeholder="예: 숫돌 교체, 면치">
+        </div>
+      </div>
+      <button class="save-btn outline" id="hourlySaveBtn" type="button">시급 작업 저장</button>
+      <p class="hint" id="hourlyMsg"></p>
+      <div id="hourlyDayList"></div>
+      <details class="wage-details">
+        <summary>시급 바꾸기 · 바뀐 기록</summary>
+        <div id="wageHistory"></div>
+        <button class="cleanup-btn" id="wageChangeBtn" type="button">시급 바꾸기 (언제부터 얼마)</button>
+      </details>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-records">
+    <div class="back-row">
+      <button class="back-btn" id="recordsBackBtn" type="button">← 뒤로</button>
+      <p class="screen-title" id="recordsTitle">저장된 기록</p>
+    </div>
+    <div class="card">
+      <p class="empty" id="loadingMsg">불러오는 중...</p>
+      <table id="recordTable" style="display:none;">
+        <thead>
+          <tr><th>날짜</th><th>품번</th><th>시간</th><th class="num">수량</th><th></th></tr>
+        </thead>
+        <tbody id="recordBody"></tbody>
+      </table>
+      <p class="empty" id="emptyMsg" style="display:none;">기록이 없어요.</p>
+
+      <div id="hourlySection" style="display:none;">
+        <p class="section-title" style="margin-top:16px;">시급 작업</p>
+        <table>
+          <thead><tr><th>날짜</th><th>무슨 일</th><th>시간</th><th class="num">금액</th><th></th></tr></thead>
+          <tbody id="hourlyBody"></tbody>
+        </table>
+      </div>
+
+      <div class="totals">
+        <div class="label">합계 수량</div>
+        <div class="value" id="totalQty">0개</div>
+      </div>
+      <div class="pay-lines" id="payLines"></div>
+      <div class="rate-field">
+        단가(원/개)
+        <input type="number" id="rateInput" value="30">
+      </div>
+      <button class="cleanup-btn" id="cleanupBtn" type="button">예전 기록 날짜·품번·작업시간 형식 정리</button>
+      <p class="hint" id="cleanupMsg"></p>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-bymonth">
+    <div class="back-row">
+      <button class="back-btn" id="bymonthBackBtn" type="button">← 뒤로</button>
+      <p class="screen-title">월별로 보기</p>
+    </div>
+    <div class="card">
+      <div id="monthListBody"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-bycode">
+    <div class="back-row">
+      <button class="back-btn" id="bycodeBackBtn" type="button">← 뒤로</button>
+      <p class="screen-title">품번별로 보기</p>
+    </div>
+    <div class="card">
+      <div id="codeListBody"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-photos">
+    <div class="back-row">
+      <button class="back-btn" id="photosBackBtn" type="button">← 뒤로</button>
+      <p class="screen-title">사진 보관함</p>
+    </div>
+    <div class="card">
+      <p class="hint" id="photosStatus" style="display:none;">불러오는 중...</p>
+      <div id="photoGrid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;"></div>
+    </div>
+  </div>
+
+</main>
+
+<nav class="bottom-bar" id="bottomBar">
+  <button type="button" id="bottomBack">← 뒤로</button>
+  <button type="button" id="bottomHome" class="home">처음으로</button>
+</nav>
+
+<div id="photoModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1000; overflow:auto;">
+  <button id="closePhotoModal" type="button" style="position:fixed; top:12px; right:12px; z-index:1001; width:40px; height:40px; border-radius:20px; border:none; background:#fff; color:#1F2A37; font-size:20px; font-weight:700;">✕</button>
+  <div id="photoModalDate" style="position:fixed; top:18px; left:16px; color:#fff; font-size:14px; z-index:1001;"></div>
+  <div style="min-height:100%; display:flex; align-items:center; justify-content:center; padding:48px 0;">
+    <img id="photoModalImg" style="max-width:100%; display:block;">
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, updateDoc, getDocs, deleteDoc, doc, query, orderBy, where, limit
+  } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+  import {
+    getAI, getGenerativeModel, GoogleAIBackend
+  } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-ai.js";
+  import {
+    initializeAppCheck, ReCaptchaV3Provider
+  } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAGX1H53bSJJOJ7HSsVC_rdUShW2KqDi94",
+    authDomain: "seongwon-worklog.firebaseapp.com",
+    projectId: "seongwon-worklog",
+    storageBucket: "seongwon-worklog.firebasestorage.app",
+    messagingSenderId: "352771487713",
+    appId: "1:352771487713:web:0f9c3a47b6b7baef1184a0"
+  };
+  const app = initializeApp(firebaseConfig);
+
+  // 테스트용 App Check 통행증 (파이어베이스 콘솔에 등록 필요)
+  self.FIREBASE_APPCHECK_DEBUG_TOKEN = "48420512-0354-4089-b881-81fe60ab0644";
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider('debug-placeholder'),
+    isTokenAutoRefreshEnabled: true
+  });
+
+  const db = getFirestore(app);
+  const recordsCol = collection(db, 'worklog_records');
+  const photosCol = collection(db, 'worklog_photos');
+  const hourlyCol = collection(db, 'worklog_hourly'); // 시급 작업 (숫돌 교체 등)
+  const wagesCol = collection(db, 'worklog_wages');   // 시급이 바뀐 기록 (언제부터 얼마)
+
+  const ai = getAI(app, { backend: new GoogleAIBackend() });
+  // 사진 읽는 AI 모델: 첫 번째가 응답이 없거나 막히면 다음 모델로 자동으로 넘어감
+  const MODEL_NAMES = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"];
+  const models = MODEL_NAMES.map(name => getGenerativeModel(ai, { model: name }));
+
+  const fileInput = document.getElementById('fileInput');
+  const fileInputGallery = document.getElementById('fileInputGallery');
+  const captureBtn = document.getElementById('captureBtn');
+  const galleryBtn = document.getElementById('galleryBtn');
+  const previewWrap = document.getElementById('preview-wrap');
+  const previewImg = document.getElementById('previewImg');
+  const batchStatus = document.getElementById('batchStatus');
+  const dateInput = document.getElementById('dateInput');
+  const codeInput = document.getElementById('codeInput');
+  const hoursInput = document.getElementById('hoursInput');
+  const qtyInput = document.getElementById('qtyInput');
+  const saveBtn = document.getElementById('saveBtn');
+  const recordTable = document.getElementById('recordTable');
+  const recordBody = document.getElementById('recordBody');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const loadingMsg = document.getElementById('loadingMsg');
+  const totalQty = document.getElementById('totalQty');
+  const payLines = document.getElementById('payLines');
+  const dayTotalLabel = document.getElementById('dayTotalLabel');
+  const dayTotalValue = document.getElementById('dayTotalValue');
+  const rateInput = document.getElementById('rateInput');
+  const statusMsg = document.getElementById('statusMsg');
+  const aiReadBtn = document.getElementById('aiReadBtn');
+  const aiStatus = document.getElementById('aiStatus');
+  const recordsTitle = document.getElementById('recordsTitle');
+  const monthListBody = document.getElementById('monthListBody');
+  const codeListBody = document.getElementById('codeListBody');
+  const homeDate = document.getElementById('homeDate');
+  const dayTotalHours = document.getElementById('dayTotalHours');
+  const dayTotalPay = document.getElementById('dayTotalPay');
+  const entryTitle = document.getElementById('entryTitle');
+  const bottomBar = document.getElementById('bottomBar');
+  const hourlyHours = document.getElementById('hourlyHours');
+  const hourlyNote = document.getElementById('hourlyNote');
+  const hourlySaveBtn = document.getElementById('hourlySaveBtn');
+  const hourlyMsg = document.getElementById('hourlyMsg');
+  const hourlyDayList = document.getElementById('hourlyDayList');
+  const wageNow = document.getElementById('wageNow');
+  const wageHistory = document.getElementById('wageHistory');
+  const wageChangeBtn = document.getElementById('wageChangeBtn');
+  const hourlySection = document.getElementById('hourlySection');
+  const hourlyBody = document.getElementById('hourlyBody');
+
+  // 알림 칸: kind = 'info'(파랑) | 'ok'(초록) | 'warn'(노랑) | 'error'(빨강)
+  function setStatus(el, text, kind){
+    el.textContent = text;
+    el.className = 'status-box' + (kind && kind !== 'info' ? ' ' + kind : '');
+    el.style.display = text ? 'block' : 'none';
+  }
+
+  // ---- 화면 전환 (+ 맨 아래 「뒤로 | 처음으로」) ----
+  let currentScreen = 'home';
+  let backTarget = 'home';
+  function showScreen(id, back){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+    currentScreen = id;
+    backTarget = back || 'home';
+    const sub = id !== 'home';
+    bottomBar.style.display = sub ? 'grid' : 'none';
+    document.body.classList.toggle('has-bottom', sub);
+    if(id === 'home') updateDayTotal();
+    if(id === 'bymonth') buildMonthList();
+    if(id === 'bycode') buildCodeList();
+    window.scrollTo({ top: 0 });
+  }
+  function cancelEditing(){
+    if(editingId){ editingId = null; saveBtn.textContent = '연마 작업 저장'; statusMsg.textContent = ''; }
+  }
+  function goBack(){
+    if(currentScreen === 'entry') cancelEditing();
+    if(backTarget === 'records') showScreen('records', recordsBackTarget);
+    else showScreen(backTarget);
+  }
+  function goHome(){
+    if(currentScreen === 'entry') cancelEditing();
+    showScreen('home');
+  }
+  document.getElementById('navRecords').addEventListener('click', () => openRecordsList(() => true, '저장된 기록', 'home', () => true));
+  document.getElementById('navByMonth').addEventListener('click', () => showScreen('bymonth'));
+  document.getElementById('navByCode').addEventListener('click', () => showScreen('bycode'));
+  document.getElementById('navPhotos').addEventListener('click', () => { showScreen('photos'); loadPhotosIfNeeded(); });
+  document.getElementById('navManual').addEventListener('click', openManualEntry);
+  ['recordsBackBtn','bymonthBackBtn','bycodeBackBtn','photosBackBtn','entryBackBtn','bottomBack']
+    .forEach(id => document.getElementById(id).addEventListener('click', goBack));
+  document.getElementById('bottomHome').addEventListener('click', goHome);
+
+  // 직접 입력 화면 (사진 없이 손으로 넣기 + 시급 작업)
+  function openManualEntry(){
+    cancelEditing();
+    aiCandidates = []; aiIndex = 0;
+    previewWrap.style.display = 'none';
+    setStatus(aiStatus, '');
+    dateInput.value = homeDate.value || todayStr;
+    codeInput.value = ''; hoursInput.value = ''; qtyInput.value = '';
+    clearUnsure();
+    statusMsg.textContent = '';
+    hourlyMsg.textContent = '';
+    entryTitle.textContent = '직접 입력';
+    renderHourlyDay();
+    showScreen('entry');
+  }
+
+  // 오늘 날짜 기본값 (한국 시간 기준. toISOString은 세계 표준시라 오전 9시 전엔 어제 날짜가 나옴)
+  function localDateStr(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  const today = new Date();
+  const todayStr = localDateStr(today);
+  const APP_START = '2026-09-01'; // 앱을 쓰기 시작한 달 (이보다 이전 날짜는 연도를 잘못 읽은 것)
+  dateInput.value = todayStr;
+  homeDate.value = todayStr;
+  document.getElementById('headerDate').textContent =
+    `${today.getMonth()+1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
+  homeDate.addEventListener('change', updateDayTotal);
+  homeDate.addEventListener('input', updateDayTotal);
+
+  let records = []; // { id, date, code, hours, qty, source } — source: 'manual'이면 사진 없이 직접 입력
+  let rawRecords = []; // Firestore에 있는 그대로의 기록 (형식 정리 전 백업용)
+  let aiCandidates = [];
+  let aiIndex = 0;
+  let editingId = null;
+  let currentFilterFn = () => true;
+  let recordsBackTarget = 'home';
+  let currentHourlyFilter = () => true;
+
+  // ---- 시급 ----
+  // 처음 정한 시급 (시급 바꾸기를 한 번도 안 했을 때 / 바꾸기 전 날짜에 쓰는 값)
+  const DEFAULT_WAGE = { from: '2000-01-01', rate: 12000, isDefault: true };
+  let wages = [DEFAULT_WAGE];   // 날짜 순서대로
+  let hourly = [];              // { id, date, minutes, note }
+
+  // 그 날짜에 적용되는 시급
+  function wageAt(date){
+    let rate = DEFAULT_WAGE.rate;
+    wages.forEach(w => { if(w.from <= date) rate = w.rate; });
+    return rate;
+  }
+  function hourlyAmount(h){ return Math.round(h.minutes / 60 * wageAt(h.date)); }
+
+  // "8H", "1H 30분", "50분" → 분
+  function minutesOf(v){
+    const t = normalizeHours(v);
+    let min = 0, found = false;
+    const h = t.match(/(\d+(?:\.\d+)?)H/); if(h){ min += Math.round(parseFloat(h[1]) * 60); found = true; }
+    const m = t.match(/(\d+)분/); if(m){ min += parseInt(m[1], 10); found = true; }
+    return found ? min : 0;
+  }
+  // 분 → "8H", "1H 30분", "30분"
+  function fmtMin(min){
+    const hh = Math.floor(min / 60), mm = min % 60;
+    if(!hh && !mm) return '0H';
+    if(!mm) return hh + 'H';
+    return hh ? `${hh}H ${mm}분` : `${mm}분`;
+  }
+  // 연마 시간: 회사 앱은 로트(카드)마다 8h로 적지만 실제로는 하루 8시간 안에 한 일이라
+  // 같은 날 여러 줄이면 더하지 않고 가장 긴 시간 하나만 씀 (하루 한 번만 계산)
+  function polishMinutesOfDay(list){
+    return list.reduce((mx, r) => Math.max(mx, minutesOf(r.hours)), 0);
+  }
+
+  async function loadHourlyAndWages(){
+    try{
+      const ws = await getDocs(wagesCol);
+      const saved = ws.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(w => w.from && w.rate > 0)
+        .sort((a,b) => String(a.from).localeCompare(String(b.from)) || (a.ts||0) - (b.ts||0));
+      wages = [DEFAULT_WAGE, ...saved];
+    }catch(err){ console.error('시급 기록 불러오기 실패', err); }
+    try{
+      const hs = await getDocs(hourlyCol);
+      hourly = hs.docs.map(d => ({ id: d.id, ...d.data() })).filter(h => h.date && h.minutes > 0);
+    }catch(err){ console.error('시급 작업 불러오기 실패', err); }
+    renderWage();
+    renderHourlyDay();
+    updateDayTotal();
+    if(currentScreen === 'records') renderRecords();
+  }
+
+  function renderWage(){
+    wageNow.textContent = `시급 ${wageAt(todayStr).toLocaleString()}원`;
+    wageHistory.innerHTML = wages.map(w => `<div class="wh"><span>${w.isDefault ? '처음' : formatDate(w.from) + '부터'}</span><span>${w.rate.toLocaleString()}원</span></div>`).join('');
+  }
+
+  // 직접 입력 화면: 그 날짜의 시급 작업 목록
+  function renderHourlyDay(){
+    const d = dateInput.value;
+    const list = hourly.filter(h => h.date === d);
+    hourlyDayList.innerHTML = list.map(h => `
+      <div class="hourly-item">
+        <div><div>${h.note ? escapeHtml(h.note) : '시급 작업'}</div><div class="k">${formatDate(h.date)} · ${fmtMin(h.minutes)} · ${hourlyAmount(h).toLocaleString()}원</div></div>
+        <button class="del-btn" data-hid="${h.id}" type="button">삭제</button>
+      </div>`).join('');
+    hourlyDayList.querySelectorAll('[data-hid]').forEach(btn => btn.addEventListener('click', () => deleteHourly(btn.dataset.hid, btn)));
+  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  async function deleteHourly(id, btn){
+    if(!confirm('이 시급 작업을 지울까요?')) return;
+    if(btn) btn.textContent = '...';
+    try{
+      await deleteDoc(doc(db, 'worklog_hourly', id));
+      hourly = hourly.filter(h => h.id !== id);
+      renderHourlyDay(); updateDayTotal();
+      if(currentScreen === 'records') renderRecords();
+    }catch(err){
+      if(btn) btn.textContent = '삭제';
+      alert('삭제 실패: 인터넷 연결을 확인해주세요.');
+      console.error(err);
+    }
+  }
+
+  hourlySaveBtn.addEventListener('click', async () => {
+    const minutes = minutesOf(hourlyHours.value);
+    if(!dateInput.value){ hourlyMsg.textContent = '날짜를 먼저 넣어 주세요.'; return; }
+    if(!(minutes > 0)){ hourlyMsg.textContent = '시간을 넣어 주세요. (예: 2H, 30분, 1H 30분)'; return; }
+    const rec = { date: dateInput.value, minutes, note: hourlyNote.value.trim(), ts: Date.now() };
+    hourlySaveBtn.disabled = true;
+    hourlyMsg.textContent = '저장 중...';
+    try{
+      const ref = await addDoc(hourlyCol, rec);
+      hourly.push({ id: ref.id, ...rec });
+      hourlyHours.value = ''; hourlyNote.value = '';
+      hourlyMsg.textContent = `저장됐어요. ${fmtMin(minutes)} × ${wageAt(rec.date).toLocaleString()}원 = ${hourlyAmount(rec).toLocaleString()}원`;
+      renderHourlyDay(); updateDayTotal();
+    }catch(err){
+      hourlyMsg.textContent = '저장 실패: 인터넷 연결을 확인해주세요.';
+      console.error(err);
+    }
+    hourlySaveBtn.disabled = false;
+  });
+
+  wageChangeBtn.addEventListener('click', async () => {
+    const rateStr = prompt('새 시급을 원 단위로 넣어 주세요. (예: 13000)', String(wageAt(todayStr)));
+    if(rateStr === null) return;
+    const rate = parseInt(String(rateStr).replace(/[^0-9]/g, ''), 10);
+    if(!(rate > 0)){ alert('시급을 숫자로 넣어 주세요.'); return; }
+    const fromStr = prompt('언제부터 이 시급을 쓸까요? (예: 2026-12-01)', todayStr);
+    if(fromStr === null) return;
+    const from = normalizeDate(fromStr);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(from)){ alert('날짜를 2026-12-01 처럼 넣어 주세요.'); return; }
+    try{
+      const w = { from, rate, ts: Date.now() };
+      const ref = await addDoc(wagesCol, w);
+      wages = [DEFAULT_WAGE, ...wages.filter(x => !x.isDefault), { id: ref.id, ...w }]
+        .sort((a,b) => a.isDefault ? -1 : b.isDefault ? 1 : String(a.from).localeCompare(String(b.from)) || (a.ts||0) - (b.ts||0));
+      renderWage(); renderHourlyDay(); updateDayTotal();
+      alert(`${formatDate(from)}부터 시급 ${rate.toLocaleString()}원으로 계산해요. 그 전 기록은 원래 시급 그대로예요.`);
+    }catch(err){
+      alert('시급 저장 실패: 인터넷 연결을 확인해주세요.');
+      console.error(err);
+    }
+  });
+
+  async function loadRecords(){
+    try{
+      const q = query(recordsCol, orderBy('date', 'asc'));
+      const snap = await getDocs(q);
+      // 필요한 칸만 꺼내 씀 (예전 기록에 남아 있는 다른 칸은 Firestore에 그대로 두고 앱에선 안 씀)
+      rawRecords = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // 날짜는 "YYYY-MM-DD"로 맞춰서 씀 (AI가 연도를 잘못 읽은 기록도 화면에선 바로 올바르게 보이게)
+      records = snap.docs.map(d => {
+        const x = d.data();
+        return { id: d.id, date: normalizeDate(x.date), code: x.code, hours: x.hours, qty: x.qty, source: x.source };
+      });
+      sortRecords();
+      loadingMsg.style.display = 'none';
+      recordTable.style.display = 'table';
+      renderRecords();
+      updateDayTotal();
+    }catch(err){
+      loadingMsg.textContent = '불러오기 실패: 인터넷 연결을 확인해주세요.';
+      console.error(err);
+    }
+  }
+  // ===== 로그인: 모창호 계정으로 로그인했을 때만 자료를 불러옴 =====
+  const auth = getAuth(app);
+  const loginGate = document.getElementById('loginGate');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginMsg = document.getElementById('loginMsg');
+  let dataStarted = false;
+  function showLogin(msg){
+    loginGate.style.display = 'flex';
+    loginMsg.textContent = msg || '';
+    loginBtn.disabled = false;
+  }
+  loginBtn.addEventListener('click', async () => {
+    loginBtn.disabled = true;
+    loginMsg.textContent = '로그인 창을 여는 중이에요...';
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try{
+      await signInWithPopup(auth, provider);
+    }catch(err){
+      // 폰에서 새 창이 막히면 같은 화면에서 넘어가는 방식으로 다시 시도
+      if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/cancelled-popup-request'].includes(err.code)){
+        try{ await signInWithRedirect(auth, provider); return; }catch(e2){ err = e2; }
+      }
+      if(err.code === 'auth/popup-closed-by-user') showLogin('로그인 창이 닫혔어요. 다시 눌러 주세요.');
+      else { showLogin('로그인하지 못했어요. 잠시 후 다시 눌러 주세요.'); console.error(err); }
+    }
+  });
+  getRedirectResult(auth).catch(err => { showLogin('로그인하지 못했어요. 다시 눌러 주세요.'); console.error(err); });
+  onAuthStateChanged(auth, async user => {
+    // 어느 계정이 자료를 볼 수 있는지는 파이어베이스 규칙(서버)에서 정함 — 화면 파일에는 계정을 적지 않음
+    if(user){
+      loginGate.style.display = 'none';
+      if(!dataStarted){ dataStarted = true; loadRecords(); loadHourlyAndWages(); }
+    } else {
+      showLogin('');
+    }
+  });
+  dateInput.addEventListener('change', renderHourlyDay);
+
+  captureBtn.addEventListener('click', () => fileInput.click());
+  galleryBtn.addEventListener('click', () => fileInputGallery.click());
+
+  // 사진을 적당한 크기로 줄여서 글자(dataURL)로 돌려줌 (업로드 속도와 안정성 때문)
+  function compressFile(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('사진을 열 수 없어요'));
+      reader.onload = (e) => {
+        const tempImg = new Image();
+        tempImg.onerror = () => reject(new Error('사진을 열 수 없어요'));
+        tempImg.onload = () => {
+          const MAX_DIM = 1600;
+          let w = tempImg.width, h = tempImg.height;
+          if(w > MAX_DIM || h > MAX_DIM){
+            const scale = MAX_DIM / Math.max(w, h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(tempImg, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        tempImg.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // 사진 파일의 "지문"(SHA-256). 같은 파일이면 항상 같은 값이 나와서 중복을 알아볼 수 있음
+  async function fileHash(file){
+    const buf = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // 앱 화면 캡처 줄의 중복 확인용 열쇠: 같은 날·같은 품번·같은 시간·같은 수량이면 같은 작업으로 봄
+  function rowKey(r){
+    return [r.date, normalizeCode(r.code), normalizeHours(r.hours), String(r.qty ?? '').replace(/[^0-9]/g,'')].join('|');
+  }
+
+  async function photoAlreadySaved(hash){
+    const snap = await getDocs(query(photosCol, where('fileHash', '==', hash), limit(1)));
+    return !snap.empty;
+  }
+
+  // 사진 한 장 또는 여러 장 처리:
+  // 중복 사진 확인 → AI로 읽기 → 이미 있는 날짜 걸러내기 → 사진 보관함 저장 → 확인 화면에 차례로 띄움
+  // (AI가 읽은 내용은 자동 저장하지 않음. 한 줄씩 확인 후 직접 저장)
+  async function processFiles(fileList){
+    const files = Array.from(fileList || []);
+    if(!files.length) return;
+    captureBtn.disabled = galleryBtn.disabled = aiReadBtn.disabled = true;
+    aiCandidates = [];
+    aiIndex = 0;
+    setStatus(aiStatus, '');
+    cancelEditing();
+    clearUnsure();
+    // 날짜가 안 적힌 사진(회사 앱 캡처, 잘라 낸 사진)은 첫 화면에서 맞춘 날짜를 씀
+    const baseDate = homeDate.value || todayStr;
+    setStatus(batchStatus, `사진 ${files.length}장을 받았어요. 읽기 시작합니다...`, 'info');
+
+    const existingDates = new Set(records.map(r => r.date));
+    const existingKeys = new Set(records.map(rowKey));
+    const seenHashes = new Set();
+    const queued = [];
+    const counts = { ok:0, dup:0, dupDate:0, none:0, fail:0 };
+    const notes = [];
+
+    for(let i = 0; i < files.length; i++){
+      const label = files.length > 1 ? `${i+1}번째 사진` : '사진';
+      setStatus(batchStatus, `${i+1}/${files.length}장: 이미 올린 사진인지 확인 중...`, 'info');
+      try{
+        const hash = await fileHash(files[i]);
+        if(seenHashes.has(hash) || await photoAlreadySaved(hash)){
+          counts.dup++; notes.push(`${label}: 중복입니다 (이미 올린 사진)`);
+          continue;
+        }
+        seenHashes.add(hash);
+        const dataUrl = await compressFile(files[i]);
+        previewImg.src = dataUrl;
+        const rows = await readWithAi(dataUrl, t => setStatus(batchStatus, `${i+1}/${files.length}장: ${t}`, 'info'));
+        if(!rows.length){
+          counts.none++; notes.push(`${label}: 연마 작업 줄을 찾지 못했어요. 품번·수량이 보이게 다시 찍거나 「직접 입력」으로 넣어 주세요.`);
+          continue;
+        }
+        const isApp = rows.some(r => r.kind === 'app');
+        if(isApp){
+          // 회사 앱 화면 캡처: 화면에 날짜가 없으므로 첫 화면에서 맞춘 날짜를 씀
+          rows.forEach(r => {
+            r.date = baseDate;
+            r.unsure = Array.isArray(r.unsure) ? r.unsure : [];
+          });
+          // 같은 날 화면을 스크롤해서 여러 장 찍을 수 있으므로 날짜가 아니라 '같은 작업'인지로 중복 확인
+          const freshApp = rows.filter(r => !existingKeys.has(rowKey(r)));
+          const dupCount = rows.length - freshApp.length;
+          if(!freshApp.length){
+            counts.dupDate++; notes.push(`${label}: 이미 저장된 작업입니다 (앱 화면 ${rows.length}줄 모두)`);
+            continue;
+          }
+          if(dupCount) notes.push(`${label}: 이미 저장된 작업 ${dupCount}줄은 뺐어요`);
+          freshApp.forEach(r => { r._photo = dataUrl; existingKeys.add(rowKey(r)); existingDates.add(r.date); });
+          queued.push(...freshApp);
+          counts.ok++;
+          addDoc(photosCol, { date: freshApp[0].date, photo: dataUrl, fileHash: hash, ts: Date.now() })
+            .catch(err => console.error('사진 저장 실패', err));
+          photosLoaded = false;
+          continue;
+        }
+        rows.forEach(r => { r.date = normalizeDate(r.date || baseDate); });
+        const fresh = rows.filter(r => !existingDates.has(r.date));
+        const skippedDates = [...new Set(rows.filter(r => existingDates.has(r.date)).map(r => r.date))];
+        if(!fresh.length){
+          counts.dupDate++; notes.push(`${label}: 이미 저장된 날짜예요 (${skippedDates.map(formatDate).join(', ')}). 다른 날이면 첫 화면 날짜를 바꾸고 다시 올려 주세요.`);
+          continue;
+        }
+        if(skippedDates.length) notes.push(`${label}: 일부 줄은 이미 있는 날짜라 뺐어요 (${skippedDates.map(formatDate).join(', ')})`);
+        // 이번에 올린 사진들끼리 같은 날짜가 또 나오면 그것도 걸러냄
+        fresh.forEach(r => { r._photo = dataUrl; existingDates.add(r.date); existingKeys.add(rowKey(r)); });
+        queued.push(...fresh);
+        counts.ok++;
+        addDoc(photosCol, { date: fresh[0].date, photo: dataUrl, fileHash: hash, ts: Date.now() })
+          .catch(err => console.error('사진 저장 실패', err));
+        photosLoaded = false; // 사진 보관함을 다시 열면 새 사진이 보이게
+      }catch(err){
+        counts.fail++; notes.push(`${label}: ${friendlyError(err)}`);
+        console.error(err);
+      }
+    }
+
+    const parts = [`성공 ${counts.ok}장`];
+    if(counts.dup) parts.push(`중복 ${counts.dup}장`);
+    if(counts.dupDate) parts.push(`이미 있는 날짜·작업 ${counts.dupDate}장`);
+    if(counts.none) parts.push(`못 읽음 ${counts.none}장`);
+    if(counts.fail) parts.push(`실패 ${counts.fail}장`);
+    const summary = parts.join(', ') + (notes.length ? '\n' + notes.join('\n') : '');
+    const kind = counts.ok ? (notes.length ? 'warn' : 'ok') : (counts.fail ? 'error' : 'warn');
+    setStatus(batchStatus, queued.length ? summary + '\n→ 확인 화면에서 저장해 주세요.' : summary, kind);
+
+    fileInput.value = '';
+    fileInputGallery.value = '';
+    captureBtn.disabled = galleryBtn.disabled = aiReadBtn.disabled = false;
+    if(queued.length){
+      aiCandidates = queued;
+      aiIndex = 0;
+      entryTitle.textContent = '확인 후 저장';
+      statusMsg.textContent = notes.length ? notes.join('\n') : '';
+      hourlyMsg.textContent = '';
+      showScreen('entry');
+      loadAiCandidate();
+      renderHourlyDay();
+    } else {
+      previewWrap.style.display = 'none';
+    }
+    checkFormValid();
+  }
+  fileInput.addEventListener('change', () => processFiles(fileInput.files));
+  fileInputGallery.addEventListener('change', () => processFiles(fileInputGallery.files));
+
+  // 오늘 날짜를 넣어야 해서 사진을 읽을 때마다 지시문을 새로 만듦
+  function buildPrompt(){
+    const nowStr = localDateStr(new Date());
+    return `이 이미지는 한국 공장(성원정공)의 작업일보입니다. 두 종류 중 하나입니다. 먼저 어느 종류인지 판단하세요.
+(가) 종이에 손글씨로 쓴 작업일보(표 형식)를 찍은 사진
+(나) 회사 작업일보 앱의 휴대폰 화면 캡처(스크린샷): 흰 카드가 세로로 여러 개 있고, 카드마다 설비 이름(예: 양두연마기), 품번(예: "ZG-785799(연마)"), "연마 · LOT 200028708600 · 8h" 같은 줄, "양품 / 불량 / 성취율" 숫자가 있습니다.
+
+■ (나) 앱 화면 캡처인 경우 규칙:
+- 이 화면은 모창호 본인의 앱 화면이므로 이름 확인 없이 화면에 보이는 작업 카드를 전부 읽으세요. 카드 하나 = 객체 하나.
+- 품번 뒤 괄호가 (연마), (연마면취) 등 무엇이든 모두 넣으세요.
+- 카드가 화면 위·아래 끝에 잘려서 품번이나 양품 숫자가 안 보이면 그 카드는 넣지 마세요. "+ 품목 추가" 같은 버튼이 숫자를 일부 가려도 양품 숫자가 보이면 읽으세요.
+- date: 화면에 날짜가 없으면 null.
+- code: 품번에서 괄호 부분을 빼고 하이픈 없이 (예: "ZG-785799(연마면취)" → "ZG785799").
+- hours: "· 8h" 부분의 숫자를 그대로 "h"를 붙여서 (예: "8h", "0.5h", "1.17h"). 앱이 계산하므로 분으로 바꾸지 마세요.
+- qty: "양품" 아래 숫자만 (쉼표 없이 정수, 예: 5,781 → 5781). 불량·성취율·LOT 번호는 읽지 마세요.
+- kind: "app"
+- unsure: 확실하면 [].
+
+■ (가) 종이 손글씨 작업일보인 경우 규칙 (사진이 넓게 찍혀 다른 표·항목이 같이 보일 수 있습니다):
+"모창호"의 작업 줄만 찾아서 읽으세요. 각 객체에 "kind":"paper"를 넣으세요. 규칙:
+0. 사진을 잘라서 성명 칸이나 사람 이름이 아예 보이지 않고 연마 작업 줄(품번·수량)만 있는 경우가 있습니다. 이때는 이름 확인 없이 보이는 연마 작업 줄을 전부 모창호의 작업으로 읽으세요. 아래 1~3번은 성명 칸이 보일 때만 따르세요.
+1. "성명" 칸에 "모창호"라고 적힌 줄을 찾으세요. (한 칸에 다른 이름과 함께 두 줄로 적혀 있어도 "모창호"가 있으면 해당)
+2. 그 바로 아래 줄들 중 성명 칸이 비어 있거나 따옴표(〃, ", '' 같은 같음표)인 줄도 모창호의 작업입니다. 이런 줄은 위 줄과 합치지 말고 반드시 별도 객체로 하나씩 따로 넣으세요. 수량만 적혀 있고 나머지가 〃이거나 비어 있어도 빠뜨리면 안 됩니다.
+3. 아래로 내려가다가 성명 칸에 다른 사람 이름이 새로 나오면 거기서 멈추세요. 그 줄부터는 읽지 마세요.
+4. 품번 칸이 따옴표(〃)이거나 비어 있으면 바로 위 줄과 같은 품번으로 채우세요. 작업시간 칸이 〃이면 위 줄 값, 비어 있으면 null.
+5. 면삭·면치 등 다른 작업 줄, 다른 사람의 줄, 비고·서명·결재란은 전부 무시하세요.
+6. 수량이 비어 있는 줄은 넣지 마세요.
+읽는 것은 아래 4가지와 확신 표시뿐입니다.
+- date: 상단 "생산일자"의 손글씨 월·일을 "YYYY-MM-DD"로. 사진에 날짜가 안 보이면 null. 손글씨 "10"을 "12"로 잘못 읽는 일이 많으니 0과 2를 잘 구분하세요. 오늘은 ${nowStr}이고 작업일보는 오늘이거나 지난 날짜입니다. 연도는 작업일보에 적혀 있지 않으면 ${nowStr.slice(0,4)}년으로 쓰세요. 오늘보다 미래 날짜로 읽혔다면 다시 확인하세요.
+- code: 품번. 성원정공 품번은 모두 "ZG"로 시작하고 뒤에 숫자 6자리가 옵니다(예: ZG785798). 손글씨 Z를 7이나 2로, G를 6으로 잘못 읽기 쉬우니 맨 앞 두 글자는 "ZG"로 쓰세요. 하이픈·띄어쓰기 없이 "ZG785798" 형식으로.
+- hours: 작업시간. 시간 단위면 "8H" 형식 (예: "8", "8h" → "8H"), 분 단위(50', 50", 50분)면 "50분" 형식으로. 비어 있으면 null.
+- qty: 양품수량 칸 숫자 (쉼표·점 없이 정수, 예: "6,872" → 6872). 손글씨 1과 7을 헷갈리기 쉬우니(7은 위에 가로획이 있음) 주의하세요.
+- unsure: 확신이 없는 항목 이름을 배열로 (예: ["qty"], ["code","qty"]). 1/7, 0/2처럼 헷갈리는 글자가 있었다면 꼭 넣으세요. 모두 확실하면 [].
+글씨가 애매하면 가장 가능성 높은 값을 넣고 unsure에 그 항목을 넣으세요. 도저히 읽을 수 없으면 해당 필드를 null로 두세요.
+반드시 아래처럼 JSON 배열만 출력하세요. 설명, 코드블록 표시, 다른 텍스트는 절대 넣지 마세요.
+종이 예: [{"kind":"paper","date":"2026-09-11","code":"ZG123456","hours":"8H","qty":5210,"unsure":[]},{"kind":"paper","date":"2026-09-11","code":"ZG123456","hours":null,"qty":310,"unsure":["qty"]}]
+앱 화면 예: [{"kind":"app","date":null,"code":"ZG785799","hours":"8h","qty":5781,"unsure":[]},{"kind":"app","date":null,"code":"ZG785799","hours":"0.5h","qty":362,"unsure":[]}]
+종이에서 연마 작업 줄(모창호 줄, 또는 이름이 잘려 안 보이는 사진의 연마 줄)을 하나도 찾지 못했거나 앱 화면에서 작업 카드를 하나도 못 찾으면 빈 배열 []만 출력하세요.`;
+  }
+
+  // 사진(dataURL)을 AI로 읽어서 줄 목록(배열)을 돌려줌. onStatus로 진행 상황(초)을 알려줌
+  async function readWithAi(dataUrl, onStatus){
+    const match = String(dataUrl).match(/^data:(.*?);base64,(.*)$/);
+    if(!match) throw new Error('사진을 먼저 찍거나 선택해주세요.');
+    const [, mimeType, base64Data] = match;
+    let elapsed = 0;
+    if(onStatus) onStatus('AI(Gemini)가 읽는 중...');
+    const ticker = setInterval(() => {
+      elapsed += 1;
+      if(onStatus) onStatus(`AI(Gemini)가 읽는 중... (${elapsed}초)`);
+    }, 1000);
+    try{
+      const timeout = () => new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('시간 초과 (45초) — 응답이 없어요.')), 45000)
+      );
+      const callAi = (m) => Promise.race([
+        m.generateContent([
+          { inlineData: { data: base64Data, mimeType } },
+          { text: buildPrompt() }
+        ]),
+        timeout()
+      ]);
+
+      // 응답 없음·연결 실패·모델 없음·서버 혼잡이면 다음 모델로 넘어감
+      const canTryNext = msg => /시간 초과|high demand|500|503|404|not found|NOT_FOUND|Failed to fetch|NetworkError|network|Load failed/i.test(msg);
+      let result, lastErr;
+      for(let k = 0; k < models.length; k++){
+        if(k > 0 && onStatus){
+          onStatus(`응답이 없어서 다른 AI 모델로 다시 시도합니다 (${k+1}/${models.length})...`);
+          await new Promise(r => setTimeout(r, 1500));
+        }
+        try{
+          result = await callAi(models[k]);
+          console.log('사진 읽기 성공 모델:', MODEL_NAMES[k]);
+          break;
+        }catch(err){
+          lastErr = err;
+          console.error(MODEL_NAMES[k], '실패', err);
+          const msg = err && err.message ? err.message : String(err);
+          if(!canTryNext(msg)) throw err;
+        }
+      }
+      if(!result){
+        const e = new Error(`AI 모델 ${models.length}개 모두 응답이 없어요 — ${lastErr && lastErr.message ? lastErr.message : ''}`);
+        throw e;
+      }
+      let text = result.response.text().trim();
+      text = text.replace(/^```json\s*/i, '').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed : [];
+    } finally {
+      clearInterval(ticker);
+    }
+  }
+
+  // 오류를 쉬운 말로 바꿈 (끝에 원래 오류를 짧게 붙여서 빈이 원인을 알 수 있게)
+  function friendlyError(err){
+    const msg = String(err && err.message ? err.message : err || '');
+    let easy;
+    if(msg.includes('모두 응답이 없어요')) easy = 'AI(Gemini) 모델 3개가 모두 답을 안 해요. 앱 문제가 아니라 Gemini 연결 쪽 문제라서, 이 화면을 캡처해서 빈에게 보여 주세요.';
+    else if(/Failed to fetch|NetworkError|network|Load failed/i.test(msg)) easy = '인터넷 연결이 안 돼서 AI(Gemini)에게 사진을 못 보냈어요. 와이파이나 데이터를 바꿔 보고 다시 해 주세요.';
+    else if(msg.includes('시간 초과')) easy = 'AI(Gemini)가 답을 안 해요. 잠시 뒤 다시 해 주세요.';
+    else if(/429|quota|RESOURCE_EXHAUSTED|exhausted/i.test(msg)) easy = 'AI 사용량이 잠깐 다 찼어요. 몇 분 뒤에 다시 해 주세요.';
+    else if(/app.?check|401|403|permission|PERMISSION/i.test(msg)) easy = 'AI 사용 허가(앱 인증) 문제예요. 이 화면을 캡처해서 빈에게 보여 주세요.';
+    else if(err instanceof SyntaxError || /JSON/i.test(msg)) easy = 'AI 답을 이해하지 못했어요. 「AI로 다시 읽기」를 눌러 주세요.';
+    else if(msg.includes('사진')) easy = msg;
+    else easy = '알 수 없는 문제로 실패했어요. 이 화면을 캡처해서 빈에게 보여 주세요.';
+    return msg && easy !== msg ? `${easy}\n(자세히: ${msg.slice(0, 140)})` : easy;
+  }
+
+  // 지금 화면에 보이는 사진을 다시 읽기 (중복·날짜 확인 없이)
+  aiReadBtn.addEventListener('click', async () => {
+    aiReadBtn.disabled = true;
+    setStatus(aiStatus, 'AI(Gemini)가 읽는 중...', 'info');
+    try{
+      const photo = previewImg.src;
+      const rows = await readWithAi(photo, t => setStatus(aiStatus, t, 'info'));
+      if(rows.length === 0){
+        setStatus(aiStatus, '연마 작업 줄을 찾지 못했어요. 아래 칸에 직접 넣어 주세요.', 'warn');
+      } else {
+        rows.forEach(r => {
+          r._photo = photo;
+          if(!r.date) r.date = dateInput.value || homeDate.value || todayStr;
+          r.unsure = Array.isArray(r.unsure) ? r.unsure : [];
+        });
+        aiCandidates = rows;
+        aiIndex = 0;
+        loadAiCandidate();
+      }
+    }catch(err){
+      setStatus(aiStatus, friendlyError(err), 'error');
+      console.error(err);
+    }
+    aiReadBtn.disabled = false;
+  });
+
+  function loadAiCandidate(){
+    if(aiIndex >= aiCandidates.length){
+      setStatus(aiStatus, '이 사진의 작업을 모두 확인했어요.', 'ok');
+      return;
+    }
+    const c = aiCandidates[aiIndex];
+    if(c._photo){ previewImg.src = c._photo; previewWrap.style.display = 'block'; }
+    if(c.date) dateInput.value = normalizeDate(c.date);
+    codeInput.value = c.code ? normalizeCode(c.code) : '';
+    hoursInput.value = c.hours ? normalizeHours(c.hours) : '';
+    qtyInput.value = (c.qty === null || c.qty === undefined) ? '' : String(c.qty).replace(/[^0-9]/g, '');
+    // AI가 확신 못한 칸(또는 비어 있는 칸)은 노란색으로 표시
+    const unsure = Array.isArray(c.unsure) ? c.unsure : [];
+    const fieldMap = { date: dateInput, code: codeInput, hours: hoursInput, qty: qtyInput };
+    const labelMap = { date: '날짜', code: '품번', hours: '작업시간', qty: '수량' };
+    const marked = [];
+    Object.keys(fieldMap).forEach(k => {
+      const on = unsure.includes(k) || (k !== 'hours' && !fieldMap[k].value);
+      fieldMap[k].classList.toggle('unsure', on);
+      if(on) marked.push(labelMap[k]);
+    });
+    let msg = `AI 인식 결과 (${aiIndex+1}/${aiCandidates.length}) — 확인 후 저장하세요.`;
+    if(marked.length) msg += `\n⚠️ 노란 칸(${marked.join(', ')})은 AI가 확실하지 않아요. 사진과 꼭 비교해 주세요.`;
+    if(dateInput.value && dateInput.value > localDateStr(new Date())) msg += `\n⚠️ 날짜가 오늘보다 미래(${formatDate(dateInput.value)})예요. 생산일자를 확인해 주세요.`;
+    setStatus(aiStatus, msg, marked.length ? 'warn' : 'info');
+    renderHourlyDay();
+    checkFormValid();
+  }
+
+  // 저장 버튼은 항상 눌 수 있게 두고, 누를 때 빠진 칸을 알려줌
+  // (예전엔 칸이 다 차야 버튼이 켜졌는데, 휴대폰 키보드에 따라 버튼이 안 켜지는 경우가 있었음)
+  function checkFormValid(){
+    saveBtn.disabled = false;
+    updateDayTotal();
+  }
+  function clearUnsure(){ [dateInput, codeInput, hoursInput, qtyInput].forEach(el => el.classList.remove('unsure')); }
+  [dateInput, codeInput, hoursInput, qtyInput].forEach(el => {
+    el.addEventListener('input', () => el.classList.remove('unsure'));
+    el.addEventListener('input', checkFormValid);
+    el.addEventListener('change', checkFormValid);
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const missing = [];
+    if(!dateInput.value) missing.push('날짜');
+    if(!codeInput.value.trim()) missing.push('품번');
+    if(!(parseInt(qtyInput.value, 10) > 0)) missing.push('수량');
+    if(missing.length){
+      statusMsg.textContent = missing.join(', ') + '을(를) 입력해주세요.';
+      return;
+    }
+    // 미래 날짜면 한 번 더 물어봄 (손글씨 10월을 12월로 잘못 읽는 경우 대비)
+    if(dateInput.value > localDateStr(new Date())){
+      if(!confirm(`날짜가 오늘보다 미래(${formatDate(dateInput.value)})예요.\n날짜가 맞나요? 맞으면 [확인], 고치려면 [취소]를 눌러주세요.`)) return;
+    }
+    // 품번·작업시간은 한 가지 형식으로 통일해서 저장 (예: ZG785798, 8H)
+    codeInput.value = normalizeCode(codeInput.value);
+    hoursInput.value = normalizeHours(hoursInput.value);
+    const rec = {
+      date: dateInput.value,
+      code: codeInput.value,
+      hours: hoursInput.value,
+      qty: parseInt(qtyInput.value, 10) || 0
+    };
+    if(editingId){
+      // 수정할 땐 원래 기록의 "직접 입력" 표시를 그대로 유지
+      const orig = records.find(r => r.id === editingId);
+      rec.source = (orig && orig.source) || 'photo';
+    } else {
+      // 사진이 화면에 올라와 있지 않으면 "직접 입력"
+      rec.source = previewWrap.style.display === 'block' ? 'photo' : 'manual';
+    }
+    saveBtn.disabled = true;
+    saveBtn.textContent = editingId ? '수정 저장 중...' : '저장 중...';
+    const wasEditing = !!editingId;
+    const wasAi = aiCandidates.length > 0;
+    try{
+      if(editingId){
+        await updateDoc(doc(db, 'worklog_records', editingId), rec);
+        const idx = records.findIndex(r => r.id === editingId);
+        if(idx !== -1) records[idx] = { id: editingId, ...rec };
+        sortRecords();
+        renderRecords();
+        statusMsg.textContent = '수정 저장됐어요.';
+        editingId = null;
+      } else {
+        const docRef = await addDoc(recordsCol, rec);
+        records.push({ id: docRef.id, ...rec });
+        sortRecords();
+        renderRecords();
+        statusMsg.textContent = '저장됐어요.';
+      }
+
+      // 다음 AI 인식 결과가 있으면 그걸로, 없으면 사진/입력칸 초기화
+      if(aiCandidates.length && aiIndex < aiCandidates.length - 1){
+        aiIndex++;
+        loadAiCandidate();
+      } else {
+        codeInput.value = '';
+        hoursInput.value = '';
+        qtyInput.value = '';
+        previewWrap.style.display = 'none';
+        fileInput.value = '';
+        fileInputGallery.value = '';
+        aiCandidates = [];
+        aiIndex = 0;
+        setStatus(aiStatus, '');
+        clearUnsure();
+        if(wasEditing){
+          // 기록 수정이 끝나면 기록 화면으로 돌아감
+          saveBtn.textContent = '연마 작업 저장';
+          checkFormValid();
+          showScreen('records', recordsBackTarget);
+          return;
+        }
+        if(wasAi){
+          // 사진에서 읽은 작업을 다 저장하면 첫 화면으로
+          saveBtn.textContent = '연마 작업 저장';
+          setStatus(batchStatus, '사진에서 읽은 작업을 모두 저장했어요.', 'ok');
+          checkFormValid();
+          showScreen('home');
+          return;
+        }
+      }
+    }catch(err){
+      statusMsg.textContent = (editingId ? '수정' : '저장') + ' 실패: 인터넷 연결을 확인해주세요.';
+      console.error(err);
+    }
+    saveBtn.textContent = editingId ? '수정 내용 저장' : '연마 작업 저장';
+    checkFormValid();
+  });
+
+  function openRecordsList(filterFn, title, backTarget, hourlyFilterFn){
+    currentFilterFn = filterFn;
+    currentHourlyFilter = hourlyFilterFn || (() => false);
+    recordsTitle.textContent = title;
+    recordsBackTarget = backTarget;
+    renderRecords();
+    showScreen('records', backTarget);
+  }
+
+  function renderRecords(){
+    const visible = records.filter(currentFilterFn);
+    recordBody.innerHTML = '';
+    const hasRecords = visible.length > 0;
+    recordTable.style.display = hasRecords ? 'table' : 'none';
+    emptyMsg.style.display = hasRecords ? 'none' : 'block';
+    visible.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="date-cell">${formatDate(r.date)}${r.source === 'manual' ? '<span class="manual-tag">직접</span>' : ''}</td>
+        <td>${normalizeCode(r.code)}</td>
+        <td>${normalizeHours(r.hours)}</td>
+        <td class="num">${r.qty.toLocaleString()}</td>
+        <td style="white-space:nowrap;">
+          <button class="del-btn" data-id="${r.id}" data-action="edit" style="color:var(--ink);">수정</button>
+          <button class="del-btn" data-id="${r.id}" data-action="delete">삭제</button>
+        </td>
+      `;
+      recordBody.appendChild(tr);
+      // 날짜가 바뀌기 직전 줄 뒤에 그날 하루 합계 줄을 넣음 (품번 상관없이 전부 더함)
+      const next = visible[i+1];
+      if(!next || next.date !== r.date){
+        const dayList = visible.filter(x => x.date === r.date);
+        const dayQty = dayList.reduce((s, x) => s + x.qty, 0);
+        const dayMin = polishMinutesOfDay(dayList);
+        const sum = document.createElement('tr');
+        sum.className = 'day-sum';
+        sum.innerHTML = `<td colspan="3">${formatDate(r.date)} 하루 합계${dayMin ? ' · 연마 ' + fmtMin(dayMin) : ''}</td><td class="num">${dayQty.toLocaleString()}</td><td></td>`;
+        recordBody.appendChild(sum);
+      }
+    });
+    recordBody.querySelectorAll('.del-btn[data-action="delete"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        btn.textContent = '...';
+        try{
+          await deleteDoc(doc(db, 'worklog_records', id));
+          records = records.filter(r => r.id !== id);
+          if(editingId === id){ editingId = null; saveBtn.textContent = '연마 작업 저장'; }
+          renderRecords();
+          updateDayTotal();
+        }catch(err){
+          statusMsg.textContent = '삭제 실패: 인터넷 연결을 확인해주세요.';
+          console.error(err);
+        }
+      });
+    });
+    recordBody.querySelectorAll('.del-btn[data-action="edit"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const r = records.find(x => x.id === id);
+        if(!r) return;
+        editingId = id;
+        dateInput.value = r.date;
+        codeInput.value = r.code;
+        hoursInput.value = r.hours || '';
+        qtyInput.value = r.qty;
+        clearUnsure();
+        saveBtn.textContent = '수정 내용 저장';
+        statusMsg.textContent = '이 기록을 수정하는 중이에요. 값을 고치고 위 버튼을 눌러 주세요.';
+        aiCandidates = []; aiIndex = 0;
+        previewWrap.style.display = 'none';
+        setStatus(aiStatus, '');
+        entryTitle.textContent = '기록 수정';
+        renderHourlyDay();
+        checkFormValid();
+        showScreen('entry', 'records');
+      });
+    });
+    updateTotals(visible);
+  }
+
+  function updateTotals(visible){
+    const list = visible || records.filter(currentFilterFn);
+    const qty = list.reduce((s, r) => s + r.qty, 0);
+    const hList = hourly.filter(currentHourlyFilter).sort((a,b) => String(b.date).localeCompare(String(a.date)));
+    // 시급 작업 표
+    hourlySection.style.display = hList.length ? 'block' : 'none';
+    hourlyBody.innerHTML = hList.map(h => `
+      <tr>
+        <td class="date-cell">${formatDate(h.date)}</td>
+        <td>${h.note ? escapeHtml(h.note) : '-'}</td>
+        <td>${fmtMin(h.minutes)}</td>
+        <td class="num">${hourlyAmount(h).toLocaleString()}원</td>
+        <td><button class="del-btn" data-hid="${h.id}" type="button">삭제</button></td>
+      </tr>`).join('');
+    hourlyBody.querySelectorAll('[data-hid]').forEach(btn => btn.addEventListener('click', () => deleteHourly(btn.dataset.hid, btn)));
+    totalQty.textContent = qty.toLocaleString() + '개';
+    payLines.innerHTML = payLinesHtml(qty, hList);
+  }
+  rateInput.addEventListener('input', () => { updateTotals(); updateDayTotal(); });
+
+  // 개수 돈 = 수량 × 단가, 시급 돈 = 시간 × 그날 시급
+  // 총금액 = 개수 돈 + 시급 돈, 공제액 = 총금액의 3.3% (원 단위 미만 버림), 실수령액 = 총금액 − 공제액
+  function calcPay(qty, hList){
+    const rate = parseFloat(rateInput.value) || 0;
+    const piece = Math.round(qty * rate);
+    const hourlyMoney = (hList || []).reduce((s, h) => s + hourlyAmount(h), 0);
+    const hourlyMin = (hList || []).reduce((s, h) => s + h.minutes, 0);
+    const gross = piece + hourlyMoney;
+    const deduct = Math.floor(gross * 33 / 1000);
+    return { piece, hourlyMoney, hourlyMin, gross, deduct, net: gross - deduct };
+  }
+  function payLinesHtml(qty, hList){
+    const p = calcPay(qty, hList);
+    const split = p.hourlyMoney ? `
+      <div class="pl"><span class="k">개수 돈 (${qty.toLocaleString()}개)</span><span class="v">${p.piece.toLocaleString()}원</span></div>
+      <div class="pl"><span class="k">시급 돈 (${fmtMin(p.hourlyMin)})</span><span class="v">${p.hourlyMoney.toLocaleString()}원</span></div>` : '';
+    return `${split}
+      <div class="pl"><span class="k">총금액</span><span class="v">${p.gross.toLocaleString()}원</span></div>
+      <div class="pl minus"><span class="k">공제액 (3.3%)</span><span class="v">−${p.deduct.toLocaleString()}원</span></div>
+      <div class="pl net"><span class="k">실수령액</span><span class="v">${p.net.toLocaleString()}원</span></div>`;
+  }
+
+  // 첫 화면의 "오늘 합계" (첫 화면 날짜 칸에 적힌 날): 수량, 연마 시간(하루 한 번), 시급 시간, 돈
+  function updateDayTotal(){
+    const d = homeDate.value;
+    const dayList = records.filter(r => r.date === d);
+    const qty = dayList.reduce((s, r) => s + r.qty, 0);
+    const polishMin = polishMinutesOfDay(dayList);
+    const hList = hourly.filter(h => h.date === d);
+    const p = calcPay(qty, hList);
+    dayTotalLabel.textContent = (!d || d === todayStr) ? '오늘 합계' : `${formatDate(d)} 합계`;
+    dayTotalValue.textContent = qty.toLocaleString() + '개';
+    const hoursParts = [];
+    if(polishMin) hoursParts.push('연마 ' + fmtMin(polishMin));
+    if(p.hourlyMin) hoursParts.push('시급 ' + fmtMin(p.hourlyMin));
+    dayTotalHours.textContent = hoursParts.join(' · ');
+    dayTotalPay.textContent = p.hourlyMoney
+      ? `${p.piece.toLocaleString()}원 + ${p.hourlyMoney.toLocaleString()}원`
+      : (p.piece ? `${p.piece.toLocaleString()}원` : '');
+  }
+
+  function formatDate(d){
+    const [y,m,day] = String(d || '').split('-');
+    if(!m || !day) return String(d || '');
+    // 올해가 아닌 날짜는 연도도 같이 보여줌 (연도를 잘못 읽은 기록을 알아보기 쉽게)
+    const yy = y && y !== todayStr.slice(0,4) ? `${y.slice(2)}년 ` : '';
+    return `${yy}${parseInt(m)}/${parseInt(day)}`;
+  }
+
+  // 저장된 기록은 항상 최신 날짜가 위로 (같은 날은 입력한 순서 그대로)
+  function sortRecords(){
+    records.sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')));
+  }
+
+  // 날짜 통일: "2026.10.26", "2026/10/26", "10/26" 등 → "2026-10-26".
+  // 작업일보엔 월·일만 적혀 있어서 AI가 연도를 엉뚱하게(예: 2025) 읽을 수 있음.
+  // 앱을 쓰기 시작한 2026년 9월보다 이전이면 올해(올해로 하면 미래가 되는 경우 작년)로 연도를 고침.
+  // 미래 날짜는 고치지 않고 저장 전에 경고로 알려줌.
+  function normalizeDate(v){
+    const t = String(v || '').trim();
+    let y, m, d;
+    let mt = t.match(/^(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+    if(mt){ [, y, m, d] = mt; }
+    else if((mt = t.match(/^(\d{1,2})\D+(\d{1,2})$/))){ [, m, d] = mt; }
+    else return t;
+    const md = `${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let out = y ? `${y}-${md}` : '';
+    if(!out || out < APP_START){
+      const cy = parseInt(todayStr.slice(0,4), 10);
+      out = `${cy}-${md}`;
+      if(out > todayStr) out = `${cy-1}-${md}`;
+    }
+    return out;
+  }
+
+  // 품번 통일: 대문자, 띄어쓰기·하이픈 제거, 숫자 6자리만 있으면 앞에 ZG,
+  // Z를 7/2로, G를 6으로 잘못 쓴 경우(7G785798, 26785798 등)도 ZG로 고침
+  function normalizeCode(v){
+    let t = String(v || '').toUpperCase().replace(/[\s\-_.·]/g, '');
+    if(/^\d{6}$/.test(t)) return 'ZG' + t;
+    const m = t.match(/^[Z27][G6](\d{6})$/);
+    if(m) return 'ZG' + m[1];
+    return t;
+  }
+  // 작업시간 통일: 시간은 "8H" ("8", "8h", "8시간" → "8H"), 분은 "50분" ("50'", "50\"", "50m" → "50분"),
+  // 둘 다 있으면 "1H 30분". 알아볼 수 없는 값은 적힌 그대로 둠
+  function normalizeHours(v){
+    const t = String(v || '').trim().replace(/[’′″”]/g, m => (m === '’' || m === '′') ? "'" : '"');
+    let m = t.match(/^(\d+(?:\.\d+)?)\s*(H|h|시간)?$/);
+    if(m){
+      // 소수 시간(회사 앱의 0.5h, 1.17h 등)은 분으로 바꿈: 0.5 → 30분, 1.17 → 1H 10분
+      const total = Math.round(parseFloat(m[1]) * 60);
+      const hh = Math.floor(total / 60), mm = total % 60;
+      if(mm === 0) return hh + 'H';
+      return hh ? `${hh}H ${mm}분` : `${mm}분`;
+    }
+    m = t.match(/^(\d+)\s*('|"|''|분|m|M|min)$/);
+    if(m) return m[1] + '분';
+    m = t.match(/^(\d+(?:\.\d+)?)\s*(H|h|시간)\s*(\d+)\s*('|"|''|분|m|M|min)?$/);
+    if(m) return m[1] + 'H ' + m[3] + '분';
+    return t;
+  }
+
+  // ---- 예전 기록 형식 정리 (백업 먼저 → 바뀔 내용 확인 → 정리) ----
+  const cleanupBtn = document.getElementById('cleanupBtn');
+  const cleanupMsg = document.getElementById('cleanupMsg');
+  cleanupBtn.addEventListener('click', async () => {
+    const rawById = Object.fromEntries(rawRecords.map(x => [x.id, x]));
+    const changes = records.map(r => {
+      const raw = rawById[r.id] || r;
+      return { r, rawDate: String(raw.date || ''), date: r.date, code: normalizeCode(r.code), hours: normalizeHours(r.hours) };
+    }).filter(x => x.date !== x.rawDate || x.code !== (x.r.code || '') || x.hours !== (x.r.hours || ''));
+    if(changes.length === 0){ cleanupMsg.textContent = '정리할 기록이 없어요. 모두 같은 형식이에요.'; return; }
+    const preview = changes.slice(0, 15).map(x =>
+      `${x.rawDate !== x.date ? `날짜 ${x.rawDate} → ${x.date}` : formatDate(x.date)}: ${x.r.code || ''} ${x.r.hours || ''} → ${x.code} ${x.hours}`).join('\n');
+    if(!confirm(`${changes.length}건의 날짜·품번·작업시간 형식을 통일합니다.\n\n${preview}${changes.length > 15 ? '\n...' : ''}\n\n먼저 전체 기록을 백업한 뒤 정리할게요. 진행할까요?`)) return;
+    cleanupBtn.disabled = true;
+    cleanupMsg.textContent = '백업 중...';
+    const backup = { at: new Date().toISOString(), count: rawRecords.length, records: rawRecords };
+    try{
+      // 1) Firestore 'worklog_backups'에 전체 기록 백업 (실패하면 정리하지 않음)
+      await addDoc(collection(db, 'worklog_backups'), { at: backup.at, count: backup.count, json: JSON.stringify(rawRecords) });
+      // 2) 휴대폰에도 백업 파일 내려받기
+      try{
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+        a.download = `작업일보-백업-${localDateStr(new Date())}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+      }catch(e){ console.error(e); }
+    }catch(err){
+      cleanupMsg.textContent = '백업 실패라서 정리를 멈췄어요: 인터넷 연결을 확인해주세요.';
+      cleanupBtn.disabled = false;
+      console.error(err);
+      return;
+    }
+    let done = 0;
+    for(const x of changes){
+      try{
+        await updateDoc(doc(db, 'worklog_records', x.r.id), { date: x.date, code: x.code, hours: x.hours });
+        x.r.code = x.code; x.r.hours = x.hours;
+        if(rawById[x.r.id]) rawById[x.r.id].date = x.date;
+        done++;
+        cleanupMsg.textContent = `정리 중... ${done}/${changes.length}`;
+      }catch(err){ console.error(err); }
+    }
+    cleanupMsg.textContent = done === changes.length
+      ? `${done}건 정리했어요. (정리 전 기록은 백업해 두었어요)`
+      : `${changes.length}건 중 ${done}건만 정리됐어요. 다시 눌러 남은 기록을 정리해주세요.`;
+    cleanupBtn.disabled = false;
+    renderRecords();
+  });
+
+  // ---- 월별로 보기 ----
+  function buildMonthList(){
+    const groups = {};
+    records.forEach(r => {
+      const key = r.date.slice(0,7); // YYYY-MM
+      if(!groups[key]) groups[key] = { qty:0, count:0, hourly:[] };
+      groups[key].qty += r.qty;
+      groups[key].count += 1;
+    });
+    hourly.forEach(h => {
+      const key = String(h.date).slice(0,7);
+      if(!groups[key]) groups[key] = { qty:0, count:0, hourly:[] };
+      groups[key].hourly.push(h);
+    });
+    const keys = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+    monthListBody.innerHTML = '';
+    if(keys.length === 0){
+      monthListBody.innerHTML = '<p class="empty">아직 기록이 없어요.</p>';
+      return;
+    }
+    keys.forEach(key => {
+      const [y, m] = key.split('-');
+      const g = groups[key];
+      const row = document.createElement('div');
+      row.className = 'month-item';
+      row.innerHTML = `
+        <div class="head">
+          <div>
+            <div class="main" style="font-size:15px; font-weight:600;">${y}년 ${parseInt(m)}월</div>
+            <div class="sub" style="font-size:12px; color:var(--muted); margin-top:2px;">${g.count}건${g.hourly.length ? ' · 시급 ' + fmtMin(g.hourly.reduce((s,h)=>s+h.minutes,0)) : ''} · 익월 21일 지급</div>
+          </div>
+          <div style="font-size:15px; font-weight:700; color:var(--ink);">${g.qty.toLocaleString()}개</div>
+        </div>
+        <div class="pay-lines">${payLinesHtml(g.qty, g.hourly)}</div>
+      `;
+      row.addEventListener('click', () => {
+        openRecordsList(r => r.date.slice(0,7) === key, `${y}년 ${parseInt(m)}월 기록`, 'bymonth', h => String(h.date).slice(0,7) === key);
+      });
+      monthListBody.appendChild(row);
+    });
+  }
+
+  // ---- 품번별로 보기 ----
+  function buildCodeList(){
+    const groups = {};
+    records.forEach(r => {
+      const key = normalizeCode(r.code) || '(품번없음)';
+      if(!groups[key]) groups[key] = { qty:0, count:0 };
+      groups[key].qty += r.qty;
+      groups[key].count += 1;
+    });
+    const keys = Object.keys(groups).sort((a,b) => groups[b].qty - groups[a].qty);
+    codeListBody.innerHTML = '';
+    if(keys.length === 0){
+      codeListBody.innerHTML = '<p class="empty">아직 기록이 없어요.</p>';
+      return;
+    }
+    keys.forEach(key => {
+      const g = groups[key];
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <div>
+          <div class="main">품번 ${key}</div>
+          <div class="sub">${g.count}건</div>
+        </div>
+        <div class="qty">${g.qty.toLocaleString()}개</div>
+      `;
+      row.addEventListener('click', () => {
+        openRecordsList(r => (normalizeCode(r.code) || '(품번없음)') === key, `품번 ${key} 기록`, 'bycode', () => false);
+      });
+      codeListBody.appendChild(row);
+    });
+  }
+
+  // ---- 사진 보관함 ----
+  const photosStatus = document.getElementById('photosStatus');
+  const photoGrid = document.getElementById('photoGrid');
+  const photoModal = document.getElementById('photoModal');
+  const photoModalImg = document.getElementById('photoModalImg');
+  const photoModalDate = document.getElementById('photoModalDate');
+  const closePhotoModal = document.getElementById('closePhotoModal');
+  const viewportMeta = document.getElementById('viewportMeta');
+
+  let photosLoaded = false;
+
+  async function loadPhotosIfNeeded(){
+    if(photosLoaded) return;
+    photosStatus.style.display = 'block';
+    try{
+      const q = query(photosCol, orderBy('ts', 'desc'));
+      const snap = await getDocs(q);
+      photosStatus.style.display = 'none';
+      if(snap.empty){
+        photoGrid.innerHTML = '<p class="empty">아직 저장된 사진이 없어요.</p>';
+      } else {
+        photoGrid.innerHTML = '';
+        snap.docs.forEach(d => {
+          const p = d.data();
+          const cell = document.createElement('div');
+          cell.style.cssText = 'position:relative; border-radius:6px; overflow:hidden; border:1px solid var(--line); aspect-ratio:1;';
+          cell.innerHTML = `
+            <img src="${p.photo}" style="width:100%; height:100%; object-fit:cover; display:block;">
+            <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.55); color:#fff; font-size:11px; text-align:center; padding:2px 0;">${formatDate(p.date)}</div>
+          `;
+          cell.addEventListener('click', () => openPhotoModal(p));
+          photoGrid.appendChild(cell);
+        });
+      }
+      photosLoaded = true;
+    }catch(err){
+      photosStatus.textContent = '불러오기 실패: 인터넷 연결을 확인해주세요.';
+      console.error(err);
+    }
+  }
+
+  function openPhotoModal(p){
+    photoModalImg.src = p.photo;
+    photoModalDate.textContent = formatDate(p.date);
+    photoModal.style.display = 'block';
+    // 사진 확대(핀치 줌)를 위해 잠깐 확대 제한을 풀어줌
+    viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0');
+  }
+  function closeModal(){
+    photoModal.style.display = 'none';
+    viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
+  }
+  closePhotoModal.addEventListener('click', closeModal);
+  photoModal.addEventListener('click', (e) => {
+    if(e.target === photoModal) closeModal();
+  });
+</script>
+
+</body>
+</html>
